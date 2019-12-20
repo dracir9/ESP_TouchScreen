@@ -8,10 +8,9 @@
 #include <stdint.h>
 #include <Arduino.h>
 
-// ESP32 specific
-#ifndef ESP32
-    #error "Not an ESP32 board! Ensure you have the right board selected."
-#endif
+//#########################
+// ESP32 specific configuration
+//#########################
 #ifndef USER_SETUP_LOADED
     #define ESP32_WIFI_TOUCH // uncomment to use parallel MCU Friend LCD touchscreen with ESP32 UNO Wifi
     #ifdef ESP32 
@@ -23,6 +22,9 @@
     #define NOISE_LEVEL 4  // Allow small amount of measurement noise
 #endif
 
+//##############################
+// Set defaults if not specified
+//##############################
 #ifndef aXM
     #define aXM 35  // analog input pin connected to LCD_RS 
 #endif
@@ -32,6 +34,9 @@
 #ifndef NOISE_LEVEL
     #define NOISE_LEVEL 4
 #endif
+
+//#########################################################
+// END
 
 #if defined(__AVR_ATmega328P__) || defined(__AVR_ATmega32U4__) || defined(TEENSYDUINO) || defined(__AVR_ATmega2560__)
 typedef volatile uint8_t RwReg;
@@ -60,7 +65,7 @@ class TouchScreen {
 public:
     TouchScreen(uint8_t xp, uint8_t yp, uint8_t xm, uint8_t ym, uint16_t rx);
 
-    bool isTouching(void);
+    bool getTouchRaw(uint16_t *x, uint16_t *y, uint16_t *z);
     uint16_t pressure(void);
     int readTouchY();
     int readTouchX();

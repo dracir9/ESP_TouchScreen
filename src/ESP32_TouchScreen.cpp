@@ -57,19 +57,36 @@ static void insert_sort(int array[], uint8_t size)
 }
 #endif
 
-TSPoint TouchScreen::getPoint(void) {
-    int x, y, z;
+/***************************************************************************************
+** Function name:           GPIO direction control  - supports class functions
+** Description:             Set parallel bus to input or output
+***************************************************************************************/
+void gpioMode(uint8_t gpio, uint8_t mode)
+{
+    if(mode == INPUT) GPIO.enable_w1tc = ((uint32_t)1 << gpio);
+    else GPIO.enable_w1ts = ((uint32_t)1 << gpio);
+    ESP_REG(DR_REG_IO_MUX_BASE + esp32_gpioMux[gpio].reg) = ((uint32_t)2 << FUN_DRV_S) | (FUN_IE) | ((uint32_t)2 << MCU_SEL_S);
+    GPIO.pin[gpio].val = 0;
+}
+
+/***************************************************************************************
+** Function name:           getTouchRaw
+** Description:             read raw touch position.  Always returns true.
+***************************************************************************************/
+bool TouchScreen::getTouchRaw(uint16_t *x, uint16_t *y, uint16_t *z)
+{
     int samples[NUMSAMPLES];
     uint8_t i, valid;
 
     valid = 1;
+
 #ifdef ESP32
     if (init)
     {
         analogReadResolution(12);
         init = false;
     }
-#endif    
+#endif
 
     pinMode(_yp, INPUT);
     pinMode(_ym, INPUT);
@@ -221,7 +238,17 @@ TSPoint TouchScreen::getPoint(void) {
         z = 0;
     }
 
-    return TSPoint(x, y, z);
+    return true;
+}
+
+TSPoint TouchScreen::getPoint(void) {
+    int x, y, z;
+
+    getTouchRaw(x,y,z);
+
+    /* Mapping */
+
+    return TSPoint(x,y,z);
 }
 
 TouchScreen::TouchScreen(uint8_t xp, uint8_t yp, uint8_t xm, uint8_t ym, uint16_t rxplate=0)
