@@ -1,20 +1,20 @@
 {
-    "name": "ESP32_TouchScreen",
-    "version": "1.0.0",
-    "keywords": "tft, display, ESP32, touch, resistive, ILI9341, ST7735, ILI9163, S6D02A1, ILI9486, ST7789, RM68140",
-    "description": "Varian of Adafruit TouchScreen display library optimized for ESP32",
-    "repository":
+  "name": "ESP32_TouchScreen",
+  "version": "1.0.0",
+  "keywords": "tft, display, ESP32, touch, resistive, ILI9341, ST7735, ILI9163, S6D02A1, ILI9486, ST7789, RM68140",
+  "description": "Varian of Adafruit TouchScreen display library optimized for ESP32",
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/dracir9/ESP_TouchScreen"
+  },
+  "authors":
+  [
     {
-      "type": "git",
-      "url": ""
-    },
-    "authors":
-    [
-      {
-          "name": "dracir9",
-          "maintainer": true
-      }
-    ],
-    "frameworks": "arduino",
-    "platforms": "espressif8266, espressif32"
-  }
+        "name": "dracir9",
+        "maintainer": true
+    }
+  ],
+  "frameworks": "arduino",
+  "platforms": "espressif8266, espressif32"
+}
