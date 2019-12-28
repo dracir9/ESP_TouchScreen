@@ -33,6 +33,4 @@ No changes are required to existing sketches, just recompilation.
 
 Compatible with both [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) and [MCUFRIEND_kbv](https://github.com/prenticedavid/MCUFRIEND_kbv/) libraries
 
-Touchscreen needs to be calibrated before use! We recomment using included [touch calibration sketch](examples/touch_calib) 
-
-![image3](extras/example.jpg)   
+Touchscreen needs to be calibrated before use! We recomment using included [touch calibration sketch](examples/touch_calib)  
