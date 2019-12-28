@@ -1,21 +1,5 @@
-// Touch screen library with X Y and Z (pressure) readings as well
-// as oversampling to avoid 'bouncing'
-// (c) ladyada / adafruit
-// Code under MIT License
 
-#include "pins_arduino.h"
-#ifdef __AVR
-  #include <avr/pgmspace.h>
-#elif defined(ESP8266)
-  #include <pgmspace.h>
-#endif
 #include "ESP32_TouchScreen.h"
-
-// increase or decrease the touchscreen oversampling. This is a little different than you make think:
-// 1 is no oversampling, whatever data we get is immediately returned
-// 2 is double-sampling and we only return valid data if both points are the same
-// 3+ uses insert sort to get the median value.
-// We found 2 is precise yet not too slow so we suggest sticking with it!
 
 #define NUMSAMPLES 2
 
@@ -57,62 +41,132 @@ static void insert_sort(int array[], uint8_t size)
 }
 #endif
 
+//
+// Touch Screen
+//
+
+#ifdef USE_FAST_PINIO
 /***************************************************************************************
-** Function name:           GPIO direction control  - supports class functions
-** Description:             Set parallel bus to input or output
+** Function name:           setPin
+** Description:             Sets the specified pins high
 ***************************************************************************************/
-void gpioMode(uint8_t gpio, uint8_t mode)
+void TouchScreen::setPin(RwReg mask)
 {
-    if(mode == INPUT) GPIO.enable_w1tc = ((uint32_t)1 << gpio);
-    else GPIO.enable_w1ts = ((uint32_t)1 << gpio);
+    GPIO.out_w1ts = mask & ~3;
+    GPIO.out1_w1ts.data = mask & 3;
+}
+
+/***************************************************************************************
+** Function name:           clearPin
+** Description:             Sets the specified pins low (Supports pins 2-33)
+***************************************************************************************/
+void TouchScreen::clearPin(RwReg mask)
+{
+    GPIO.out_w1tc = mask & ~3;
+    GPIO.out1_w1tc.data = mask & 3;
+}
+
+/***************************************************************************************
+** Function name:           gpioMode
+** Description:             Set pin to input or output
+***************************************************************************************/
+void TouchScreen::gpioMode(uint8_t gpio, uint8_t mode)
+{
+    if(gpio < 32)
+    {
+        if(mode == INPUT) GPIO.enable_w1tc = ((uint32_t)1 << gpio);
+        else GPIO.enable_w1ts = ((uint32_t)1 << gpio);
+    }
+    else
+    {
+        gpio -= 32;
+        if(mode == INPUT) GPIO.enable1_w1tc.data = ((uint32_t)1 << gpio);
+        else GPIO.enable1_w1ts.data = ((uint32_t)1 << gpio);
+    }
+
     ESP_REG(DR_REG_IO_MUX_BASE + esp32_gpioMux[gpio].reg) = ((uint32_t)2 << FUN_DRV_S) | (FUN_IE) | ((uint32_t)2 << MCU_SEL_S);
     GPIO.pin[gpio].val = 0;
+}
+#endif
+
+void TouchScreen::savePinstate()
+{
+    if (!restore) return;
+    oldMode = GPIO.enable & ~3;
+    oldMode |= GPIO.enable1.data & 3;
+
+    oldState = GPIO.out & ~3;
+    oldState |= GPIO.out1.data & 3;
+}
+
+void TouchScreen::restorePinstate()
+{
+    if (!restore) return;
+    ((oldMode & yp_pin) > 0) ? gpioMode(_yp, OUTPUT) : gpioMode(_yp, INPUT);
+    ((oldMode & ym_pin) > 0) ? gpioMode(_ym, OUTPUT) : gpioMode(_ym, INPUT);
+    ((oldMode & xp_pin) > 0) ? gpioMode(_xp, OUTPUT) : gpioMode(_xp, INPUT);
+    ((oldMode & xm_pin) > 0) ? gpioMode(_xm, OUTPUT) : gpioMode(_xm, INPUT);
+    setPin(oldState & (yp_pin | ym_pin | xp_pin | xm_pin));
+    clearPin(~oldState & (yp_pin | ym_pin | xp_pin | xm_pin));
+}
+
+void TouchScreen::remap(uint16_t &x, uint16_t &y)
+{
+    for (uint8_t i = 0; i < GRID_POINTS_X - 1; i++)
+    {
+        if (x > (grid_x[i + 1] >> 4))
+        {
+            x = map(x, grid_x[i]>>4, grid_x[i + 1]>>4, (grid_x[i]&15) * 273, (grid_x[i + 1]&15) * 273);
+            break;
+        }
+    }
+
+    for (uint8_t i = 0; i < GRID_POINTS_Y - 1; i++)
+    {
+        if (y > (grid_y[i + 1] >> 4))
+        {
+            y = map(y, grid_y[i]>>4, grid_y[i + 1]>>4, (grid_y[i]&15) * 273, (grid_y[i + 1]&15) * 273);
+            break;
+        }
+    }
 }
 
 /***************************************************************************************
 ** Function name:           getTouchRaw
 ** Description:             read raw touch position.  Always returns true.
 ***************************************************************************************/
-bool TouchScreen::getTouchRaw(uint16_t *x, uint16_t *y, uint16_t *z)
+bool TouchScreen::getTouchRaw(uint16_t &x, uint16_t &y, uint16_t &z)
 {
-    int samples[NUMSAMPLES];
+    uint16_t samples[NUMSAMPLES];
     uint8_t i, valid;
 
     valid = 1;
 
-#ifdef ESP32
     if (init)
     {
         analogReadResolution(12);
         init = false;
     }
-#endif
 
-    pinMode(_yp, INPUT);
-    pinMode(_ym, INPUT);
-    pinMode(_xp, OUTPUT);
-    pinMode(_xm, OUTPUT);
+    // Save state of pins to allow restoring them
+    savePinstate();
+
+    gpioMode(_yp, INPUT);
+    gpioMode(_ym, INPUT);
+    gpioMode(_xp, OUTPUT);
+    gpioMode(_xm, OUTPUT);
 
 #if defined (USE_FAST_PINIO)
-    #ifdef ESP32
-        setPin(xp_pin);
-        clearPin(xm_pin);
-    #else
-        *xp_port |= xp_pin;
-        *xm_port &= ~xm_pin;
-    #endif
+    setPin(xp_pin);
+    clearPin(xm_pin);
 #else
     digitalWrite(_xp, HIGH);
     digitalWrite(_xm, LOW);
 #endif
 
-#ifdef __arm__
-    delayMicroseconds(20); // Fast ARM chips need to allow voltages to settle
-#endif
-
     for (i=0; i<NUMSAMPLES; i++)
     {
-#if defined (ESP32_WIFI_TOUCH) && defined (ESP32)
+#if defined (ESP32_WIFI_TOUCH)
         samples[i] = analogRead(aYP);
 #else
         samples[i] = analogRead(_yp);
@@ -139,32 +193,22 @@ bool TouchScreen::getTouchRaw(uint16_t *x, uint16_t *y, uint16_t *z)
 // _xm -> INPUT
 //############################################################
 
-    pinMode(_xp, INPUT);
-    pinMode(_xm, INPUT);
-    pinMode(_yp, OUTPUT);
-    pinMode(_ym, OUTPUT);
+    gpioMode(_xp, INPUT);
+    gpioMode(_xm, INPUT);
+    gpioMode(_yp, OUTPUT);
+    gpioMode(_ym, OUTPUT);
 
 #if defined (USE_FAST_PINIO)
-    #ifdef ESP32
-        setPin(yp_pin);
-        clearPin(ym_pin);
-    #else
-        *ym_port &= ~ym_pin;
-        *yp_port |= yp_pin;
-    #endif
+    setPin(yp_pin);
+    clearPin(ym_pin);
 #else
     digitalWrite(_ym, LOW);
     digitalWrite(_yp, HIGH);
 #endif
 
-  
-#ifdef __arm__
-    delayMicroseconds(20); // Fast ARM chips need to allow voltages to settle
-#endif
-
     for (i=0; i<NUMSAMPLES; i++)
     {
-    #if defined (ESP32_WIFI_TOUCH) && defined (ESP32)
+    #if defined (ESP32_WIFI_TOUCH)
         samples[i] = analogRead(aXM);
     #else
         samples[i] = analogRead(_xm);
@@ -193,24 +237,18 @@ bool TouchScreen::getTouchRaw(uint16_t *x, uint16_t *y, uint16_t *z)
     // Set X+ to ground
     // Set Y- to VCC
     // Hi-Z X- and Y+
-    pinMode(_xp, OUTPUT);
-    pinMode(_yp, INPUT);
+    gpioMode(_xp, OUTPUT);
+    gpioMode(_yp, INPUT);
 
 #if defined (USE_FAST_PINIO)
-    #ifdef ESP32
-        setPin(ym_pin);
-        clearPin(xp_pin);
-    #else
-        *xp_port &= ~xp_pin;
-        *ym_port |= ym_pin;
-    #endif
+    setPin(ym_pin);
+    clearPin(xp_pin);
 #else
     digitalWrite(_xp, LOW);
     digitalWrite(_ym, HIGH); 
 #endif
-  
 
-#if defined (ESP32_WIFI_TOUCH) && defined (ESP32)
+#if defined (ESP32_WIFI_TOUCH)
     int z1 = analogRead(aXM); 
     int z2 = analogRead(aYP);
 #else
@@ -225,8 +263,7 @@ bool TouchScreen::getTouchRaw(uint16_t *x, uint16_t *y, uint16_t *z)
         rtouch = z2;
         rtouch /= z1;
         rtouch -= 1;
-        rtouch *= x;
-        rtouch *= _rxplate;
+        rtouch *= x * _rxplate;
         rtouch /= ADC_MAX+1;
      
         z = rtouch;
@@ -234,19 +271,19 @@ bool TouchScreen::getTouchRaw(uint16_t *x, uint16_t *y, uint16_t *z)
         z = (ADC_MAX-(z2-z1));
     }
 
-    if (! valid) {
-        z = 0;
-    }
-
-    return true;
+    // Restore shared TFT pins if needed
+    restorePinstate();
+    return valid;
 }
 
 TSPoint TouchScreen::getPoint(void) {
-    int x, y, z;
-
-    getTouchRaw(x,y,z);
+    uint16_t x, y, z;
+    bool valid = getTouchRaw(x,y,z);
 
     /* Mapping */
+    remap(x,y);
+
+    if (!valid) z = 0;
 
     return TSPoint(x,y,z);
 }
@@ -264,30 +301,21 @@ TouchScreen::TouchScreen(uint8_t xp, uint8_t yp, uint8_t xm, uint8_t ym, uint16_
     yp_pin = digitalPinToBitMask(_yp);
     xm_pin = digitalPinToBitMask(_xm);
     ym_pin = digitalPinToBitMask(_ym);
-    
-    #ifndef ESP32
-        xp_port =  portOutputRegister(digitalPinToPort(_xp));
-        yp_port =  portOutputRegister(digitalPinToPort(_yp));
-        xm_port =  portOutputRegister(digitalPinToPort(_xm));
-        ym_port =  portOutputRegister(digitalPinToPort(_ym));
-    #else
-        if((_xp < 2 || _yp < 2 || _xm < 2 || _ym < 2) && (_xp > 31 || _yp < 31 || _xm < 31 || _ym < 31))
-        {
-            Serial.println("WARNING: Using unexpected pins for touch screen. Undefined behavior may occur");
-            xp_pin = yp_pin = xm_pin = ym_pin = 0;
-        }
-    #endif
-#endif
 
-    pressureThreshhold = 10;
+    if((_xp < 2 || _yp < 2 || _xm < 2 || _ym < 2) && (_xp > 31 || _yp < 31 || _xm < 31 || _ym < 31))
+    {
+        Serial.println("WARNING: Using unexpected pins for touch screen. Undefined behavior may occur");
+        xp_pin = yp_pin = xm_pin = ym_pin = 0;
+    }
+#endif
 }
 
 int TouchScreen::readTouchX(void) {
-    pinMode(_yp, INPUT);
-    pinMode(_ym, INPUT);
-    pinMode(_xp, OUTPUT);
-    pinMode(_xm, OUTPUT);
-#if defined (USE_FAST_PINIO) && defined (ESP32)
+    gpioMode(_yp, INPUT);
+    gpioMode(_ym, INPUT);
+    gpioMode(_xp, OUTPUT);
+    gpioMode(_xm, OUTPUT);
+#if defined (USE_FAST_PINIO)
     setPin(xp_pin);
     clearPin(xm_pin | ym_pin | yp_pin);
 #else
@@ -297,7 +325,7 @@ int TouchScreen::readTouchX(void) {
     digitalWrite(_xm, LOW);
 #endif
 
-#if defined (ESP32_WIFI_TOUCH) && defined (ESP32)
+#if defined (ESP32_WIFI_TOUCH)
     return (ADC_MAX-analogRead(aYP));
 #else
     return (ADC_MAX-analogRead(_yp));
@@ -306,12 +334,12 @@ int TouchScreen::readTouchX(void) {
 
 
 int TouchScreen::readTouchY(void) {
-    pinMode(_xp, INPUT);
-    pinMode(_xm, INPUT);
-    pinMode(_yp, OUTPUT);
-    pinMode(_ym, OUTPUT);
+    gpioMode(_xp, INPUT);
+    gpioMode(_xm, INPUT);
+    gpioMode(_yp, OUTPUT);
+    gpioMode(_ym, OUTPUT);
     
-#if defined (USE_FAST_PINIO) && defined (ESP32)
+#if defined (USE_FAST_PINIO)
     setPin(yp_pin);
     clearPin(xm_pin | ym_pin | xp_pin);
 #else
@@ -321,7 +349,7 @@ int TouchScreen::readTouchY(void) {
     digitalWrite(_ym, LOW);
 #endif
 
-#if defined (ESP32_WIFI_TOUCH) && defined (ESP32)
+#if defined (ESP32_WIFI_TOUCH)
     return (ADC_MAX-analogRead(aXM));
 #else
     return (ADC_MAX-analogRead(_xm));
@@ -333,12 +361,12 @@ uint16_t TouchScreen::pressure(void) {
     // Set X+ to ground
     // Set Y- to VCC
     // Hi-Z X- and Y+
-    pinMode(_xp, OUTPUT);
-    pinMode(_ym, OUTPUT);
-    pinMode(_xm, INPUT);
-    pinMode(_yp, INPUT);
+    gpioMode(_xp, OUTPUT);
+    gpioMode(_ym, OUTPUT);
+    gpioMode(_xm, INPUT);
+    gpioMode(_yp, INPUT);
 
-#if defined (USE_FAST_PINIO) && defined (ESP32)
+#if defined (USE_FAST_PINIO)
     setPin(ym_pin);
     clearPin(xp_pin | xm_pin | yp_pin);
 #else
@@ -348,7 +376,7 @@ uint16_t TouchScreen::pressure(void) {
     digitalWrite(_yp, LOW);
 #endif
 
-#if defined (ESP32_WIFI_TOUCH) && defined (ESP32)
+#if defined (ESP32_WIFI_TOUCH)
     int z1 = analogRead(aXM); 
     int z2 = analogRead(aYP);
 #else

@@ -1,25 +1,14 @@
-// Touch screen library with X Y and Z (pressure) readings as well
-// as oversampling to avoid 'bouncing'
-// (c) ladyada / adafruit
-// Code under MIT License
 
-#ifndef _ADAFRUIT_TOUCHSCREEN_H_
-#define _ADAFRUIT_TOUCHSCREEN_H_
-#include <stdint.h>
+#ifndef _ESP32_TOUCHSCREEN_H_
+#define _ESP32_TOUCHSCREEN_H_
 #include <Arduino.h>
 
-//#########################
-// ESP32 specific configuration
-//#########################
-#ifndef USER_SETUP_LOADED
-    #define ESP32_WIFI_TOUCH // uncomment to use parallel MCU Friend LCD touchscreen with ESP32 UNO Wifi
-    #ifdef ESP32 
-        #define ADC_MAX 4095  // maximum value for ESP32 ADC (default 11db, 12 bits)
-        #define aXM 35  // analog input pin connected to LCD_RS 
-        #define aYP 39  // analog input pin connected to LCD_WR
-    #else
-    #endif 
-    #define NOISE_LEVEL 4  // Allow small amount of measurement noise
+#ifndef ESP32
+    #error "Not an ESP32 board. Make sure the correct board is selected."
+#endif
+
+#ifndef TOUCH_SETUP_LOADED
+    #include "Touch_Setup.h"
 #endif
 
 //##############################
@@ -34,21 +23,15 @@
 #ifndef NOISE_LEVEL
     #define NOISE_LEVEL 4
 #endif
+#ifndef ADC_MAX
+    #define ADC_MAX 4095
+#endif
 
-//#########################################################
+//##############################
 // END
 
-#if defined(__AVR_ATmega328P__) || defined(__AVR_ATmega32U4__) || defined(TEENSYDUINO) || defined(__AVR_ATmega2560__)
-typedef volatile uint8_t RwReg;
-#elif defined(ARDUINO_STM32_FEATHER)
-typedef volatile uint32 RwReg;
-#elif defined(NRF52_SERIES) || defined(ESP32) || defined(ARDUINO_ARCH_STM32)
 typedef volatile uint32_t RwReg;
-#endif
-
-#if defined (__AVR__) || defined(TEENSYDUINO) || defined(ARDUINO_ARCH_SAMD) || defined(ESP32)
-    #define USE_FAST_PINIO
-#endif
+#define USE_FAST_PINIO
 
 class TSPoint {
 public:
@@ -65,38 +48,36 @@ class TouchScreen {
 public:
     TouchScreen(uint8_t xp, uint8_t yp, uint8_t xm, uint8_t ym, uint16_t rx);
 
-    bool getTouchRaw(uint16_t *x, uint16_t *y, uint16_t *z);
-    uint16_t pressure(void);
+    bool getTouchRaw(uint16_t &x, uint16_t &y, uint16_t &z);
+    void remap(uint16_t &x, uint16_t &y);
+    TSPoint getPoint();
+    uint16_t pressure();
     int readTouchY();
     int readTouchX();
-    TSPoint getPoint();
-    int16_t pressureThreshhold;
+
+    void savePinstate();
+    void restorePinstate();
+    void enableRestore(){ restore = true; }
+    void disableRestore(){ restore = false; }
 
 private:
     uint8_t _yp, _ym, _xm, _xp;
     uint16_t _rxplate;
 
-#ifdef ESP32
     bool init = true;
-#endif
+    bool restore = false;
+
+    RwReg oldMode = 0;
+    RwReg oldState = 0;
+
+    uint16_t grid_x[GRID_POINTS_X] = GRID_X;
+    uint16_t grid_y[GRID_POINTS_Y] = GRID_Y;
 
 #ifdef USE_FAST_PINIO
-    #ifdef ESP32
-        RwReg xp_pin, xm_pin, yp_pin, ym_pin;
-        void setPin(RwReg mask)
-        {
-            GPIO.out_w1ts = mask & ~3;
-            GPIO.out1_w1ts.data = mask & 3;
-        }
-        void clearPin(RwReg mask)
-        {
-            GPIO.out_w1tc = mask & ~3;
-            GPIO.out1_w1tc.data = mask & 3;
-        }
-    #else
-        volatile RwReg *xp_port, *yp_port, *xm_port, *ym_port;
-        RwReg xp_pin, xm_pin, yp_pin, ym_pin;
-    #endif
+    RwReg xp_pin, xm_pin, yp_pin, ym_pin;
+    void gpioMode(uint8_t gpio, uint8_t mode);
+    void setPin(RwReg mask);
+    void clearPin(RwReg mask);
 #endif
 };
 
