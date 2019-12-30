@@ -26,7 +26,18 @@
 #ifndef ADC_MAX
     #define ADC_MAX 4095
 #endif
-
+#ifndef GRID_POINTS_X
+    #define GRID_POINTS_X 2
+#endif
+#ifndef GRID_POINTS_Y
+    #define GRID_POINTS_Y 2
+#endif
+#ifndef GRID_X
+    #define GRID_X {65535, 0}
+#endif
+#ifndef GRID_Y
+    #define GRID_Y {65535, 0}
+#endif
 //##############################
 // END
 

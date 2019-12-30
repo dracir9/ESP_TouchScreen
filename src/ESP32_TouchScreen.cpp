@@ -1,6 +1,7 @@
 
 #include "ESP32_TouchScreen.h"
 
+
 #define NUMSAMPLES 2
 
 TSPoint::TSPoint(void)
@@ -70,8 +71,16 @@ void TouchScreen::clearPin(RwReg mask)
 ** Function name:           gpioMode
 ** Description:             Set pin to input or output
 ***************************************************************************************/
+#include "driver/rtc_io.h"
 void TouchScreen::gpioMode(uint8_t gpio, uint8_t mode)
 {
+    uint32_t rtc_reg = rtc_gpio_desc[gpio].reg;
+
+    //RTC pins PULL settings
+    if(rtc_reg) {
+        ESP_REG(rtc_reg) = ESP_REG(rtc_reg) & ~(rtc_gpio_desc[gpio].pullup | rtc_gpio_desc[gpio].pulldown);
+    }
+
     if(gpio < 32)
     {
         if(mode == INPUT) GPIO.enable_w1tc = ((uint32_t)1 << gpio);
@@ -112,23 +121,18 @@ void TouchScreen::restorePinstate()
 
 void TouchScreen::remap(uint16_t &x, uint16_t &y)
 {
-    for (uint8_t i = 0; i < GRID_POINTS_X - 1; i++)
+    uint8_t i;
+    for (i = 0; i < GRID_POINTS_X - 1; i++)
     {
-        if (x > (grid_x[i + 1] >> 4))
-        {
-            x = map(x, grid_x[i]>>4, grid_x[i + 1]>>4, (grid_x[i]&15) * 273, (grid_x[i + 1]&15) * 273);
-            break;
-        }
+        if (x > (grid_x[i + 1] >> 4)) break;
     }
+    x = map(x, grid_x[i]>>4, grid_x[i + 1]>>4, (grid_x[i]&15) * 273, (grid_x[i + 1]&15) * 273);
 
-    for (uint8_t i = 0; i < GRID_POINTS_Y - 1; i++)
+    for (i = 0; i < GRID_POINTS_Y - 1; i++)
     {
-        if (y > (grid_y[i + 1] >> 4))
-        {
-            y = map(y, grid_y[i]>>4, grid_y[i + 1]>>4, (grid_y[i]&15) * 273, (grid_y[i + 1]&15) * 273);
-            break;
-        }
+        if (y > (grid_y[i + 1] >> 4)) break;
     }
+    y = map(y, grid_y[i]>>4, grid_y[i + 1]>>4, (grid_y[i]&15) * 273, (grid_y[i + 1]&15) * 273);
 }
 
 /***************************************************************************************
@@ -138,9 +142,10 @@ void TouchScreen::remap(uint16_t &x, uint16_t &y)
 bool TouchScreen::getTouchRaw(uint16_t &x, uint16_t &y, uint16_t &z)
 {
     uint16_t samples[NUMSAMPLES];
-    uint8_t i, valid;
+    uint8_t i;
+    bool valid;
 
-    valid = 1;
+    valid = true;
 
     if (init)
     {
@@ -180,7 +185,7 @@ bool TouchScreen::getTouchRaw(uint16_t &x, uint16_t &y, uint16_t &z)
     // Allow small amount of measurement noise, because capacitive
     // coupling to a TFT display's signals can induce some noise.
     if (samples[0] - samples[1] < -NOISE_LEVEL || samples[0] - samples[1] > NOISE_LEVEL) {
-        valid = 0;
+        valid = false;
     } else {
         samples[1] = (samples[0] + samples[1]) >> 1; // average 2 samples
     }
@@ -222,7 +227,7 @@ bool TouchScreen::getTouchRaw(uint16_t &x, uint16_t &y, uint16_t &z)
     // Allow small amount of measurement noise, because capacitive
     // coupling to a TFT display's signals can induce some noise.
     if (samples[0] - samples[1] < -NOISE_LEVEL || samples[0] - samples[1] > NOISE_LEVEL) {
-        valid = 0;
+        valid = false;
     } else {
         samples[1] = (samples[0] + samples[1]) >> 1; // average 2 samples
     }
@@ -258,14 +263,14 @@ bool TouchScreen::getTouchRaw(uint16_t &x, uint16_t &y, uint16_t &z)
 
     if (_rxplate != 0)
     {
-        // now read the x 
         float rtouch;
         rtouch = z2;
         rtouch /= z1;
         rtouch -= 1;
-        rtouch *= x * _rxplate;
+        rtouch *= x;
+        rtouch *= _rxplate;
         rtouch /= ADC_MAX+1;
-     
+
         z = rtouch;
     } else {
         z = (ADC_MAX-(z2-z1));
@@ -279,7 +284,6 @@ bool TouchScreen::getTouchRaw(uint16_t &x, uint16_t &y, uint16_t &z)
 TSPoint TouchScreen::getPoint(void) {
     uint16_t x, y, z;
     bool valid = getTouchRaw(x,y,z);
-
     /* Mapping */
     remap(x,y);
 
@@ -310,7 +314,10 @@ TouchScreen::TouchScreen(uint8_t xp, uint8_t yp, uint8_t xm, uint8_t ym, uint16_
 #endif
 }
 
-int TouchScreen::readTouchX(void) {
+int TouchScreen::readTouchX(void)
+{
+    savePinstate();
+
     gpioMode(_yp, INPUT);
     gpioMode(_ym, INPUT);
     gpioMode(_xp, OUTPUT);
@@ -324,16 +331,23 @@ int TouchScreen::readTouchX(void) {
     digitalWrite(_xp, HIGH);
     digitalWrite(_xm, LOW);
 #endif
-
+    
 #if defined (ESP32_WIFI_TOUCH)
-    return (ADC_MAX-analogRead(aYP));
+    uint16_t val = (ADC_MAX-analogRead(aYP));
 #else
-    return (ADC_MAX-analogRead(_yp));
+    uint16_t val = (ADC_MAX-analogRead(_yp));
 #endif
+
+    restorePinstate();
+
+    return val;
 }
 
 
-int TouchScreen::readTouchY(void) {
+int TouchScreen::readTouchY(void)
+{
+    savePinstate();
+
     gpioMode(_xp, INPUT);
     gpioMode(_xm, INPUT);
     gpioMode(_yp, OUTPUT);
@@ -350,14 +364,21 @@ int TouchScreen::readTouchY(void) {
 #endif
 
 #if defined (ESP32_WIFI_TOUCH)
-    return (ADC_MAX-analogRead(aXM));
+    uint16_t val = (ADC_MAX-analogRead(aXM));
 #else
-    return (ADC_MAX-analogRead(_xm));
+    uint16_t val = (ADC_MAX-analogRead(_xm));
 #endif
+
+    restorePinstate();
+
+    return val;
 }
 
 
-uint16_t TouchScreen::pressure(void) {
+uint16_t TouchScreen::pressure(void)
+{
+    savePinstate();
+
     // Set X+ to ground
     // Set Y- to VCC
     // Hi-Z X- and Y+
@@ -384,6 +405,7 @@ uint16_t TouchScreen::pressure(void) {
     int z2 = analogRead(_yp);
 #endif
 
+    restorePinstate();
 
     if (_rxplate != 0)
     {
