@@ -121,17 +121,14 @@ void TouchScreen::restorePinstate()
 
 void TouchScreen::remap(uint16_t &x, uint16_t &y)
 {
-    uint8_t i;
-    for (i = 0; i < GRID_POINTS_X - 1; i++)
-    {
-        if (x > (grid_x[i + 1] >> 4)) break;
-    }
+    // Map X
+    uint8_t i = 0;
+    while (x < (grid_x[i + 1] >> 4) && i < GRID_POINTS_X - 1) i++; 
     x = map(x, grid_x[i]>>4, grid_x[i + 1]>>4, (grid_x[i]&15) * 273, (grid_x[i + 1]&15) * 273);
 
-    for (i = 0; i < GRID_POINTS_Y - 1; i++)
-    {
-        if (y > (grid_y[i + 1] >> 4)) break;
-    }
+    // Map Y
+    i = 0;
+    while (y < (grid_y[i + 1] >> 4) && i < GRID_POINTS_Y - 1) i++; 
     y = map(y, grid_y[i]>>4, grid_y[i + 1]>>4, (grid_y[i]&15) * 273, (grid_y[i + 1]&15) * 273);
 }
 
