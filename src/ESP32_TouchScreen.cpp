@@ -93,7 +93,10 @@ void TouchScreen::gpioMode(uint8_t gpio, uint8_t mode)
         else GPIO.enable1_w1ts.data = ((uint32_t)1 << gpio);
     }
 
+    if(mode == INPUT)
     ESP_REG(DR_REG_IO_MUX_BASE + esp32_gpioMux[gpio].reg) = ((uint32_t)2 << FUN_DRV_S) | (FUN_IE) | ((uint32_t)2 << MCU_SEL_S);
+    else
+    ESP_REG(DR_REG_IO_MUX_BASE + esp32_gpioMux[gpio].reg) = ((uint32_t)2 << FUN_DRV_S) | ((uint32_t)2 << MCU_SEL_S);
     GPIO.pin[gpio].val = 0;
 }
 #endif
@@ -119,17 +122,39 @@ void TouchScreen::restorePinstate()
     clearPin(~oldState & (yp_pin | ym_pin | xp_pin | xm_pin));
 }
 
-void TouchScreen::remap(uint16_t &x, uint16_t &y)
+/***************************************************************************************
+** Function name:           remap
+** Description:             Modify x, y coordinates to compensate non linearity errors
+***************************************************************************************/
+void TouchScreen::remap(uint16_t &x, uint16_t &y, uint16_t x_max, uint16_t y_max)
 {
+#ifndef POLYNOMIAL
     // Map X
     uint8_t i = 0;
+    int in_min, out_min;
     while (x < (grid_x[i + 1] >> 4) && i < GRID_POINTS_X - 1) i++; 
-    x = map(x, grid_x[i]>>4, grid_x[i + 1]>>4, (grid_x[i]&15) * 273, (grid_x[i + 1]&15) * 273);
+    //x = map(x, grid_x[i]>>4, grid_x[i + 1]>>4, (grid_x[i]&15) * x_max/15, (grid_x[i + 1]&15) * x_max/15);
+    in_min = grid_x[i]>>4;
+    out_min = (grid_x[i++]&15) * x_max/15;
+    
+    int divisor = ((grid_x[i]>>4) - in_min);
+    x = (x - in_min) * ((grid_x[i]&15) * x_max/15 - out_min) / divisor + out_min;
 
     // Map Y
     i = 0;
     while (y < (grid_y[i + 1] >> 4) && i < GRID_POINTS_Y - 1) i++; 
-    y = map(y, grid_y[i]>>4, grid_y[i + 1]>>4, (grid_y[i]&15) * 273, (grid_y[i + 1]&15) * 273);
+    //y = map(y, grid_y[i]>>4, grid_y[i + 1]>>4, (grid_y[i]&15) * y_max/15, (grid_y[i + 1]&15) * y_max/15);
+    in_min = grid_y[i]>>4;
+    out_min = (grid_y[i++]&15) * y_max/15;
+    
+    divisor = ((grid_y[i]>>4) - in_min);
+    y = (y - in_min) * ((grid_y[i]&15) * y_max/15 - out_min) / divisor + out_min;
+#else
+        float dx = x;
+        float dy = y;
+        x = POLY_X;
+        y = POLY_Y;
+#endif
 }
 
 /***************************************************************************************
@@ -146,7 +171,7 @@ bool TouchScreen::getTouchRaw(uint16_t &x, uint16_t &y, uint16_t &z)
 
     if (init)
     {
-        analogReadResolution(12);
+        analogReadResolution(ADC_RESOLUTION);
         init = false;
     }
 
@@ -278,11 +303,12 @@ bool TouchScreen::getTouchRaw(uint16_t &x, uint16_t &y, uint16_t &z)
     return valid;
 }
 
-TSPoint TouchScreen::getPoint(void) {
+TSPoint TouchScreen::getPoint(uint16_t x_max = 4095, uint16_t y_max = 4095)
+{
     uint16_t x, y, z;
     bool valid = getTouchRaw(x,y,z);
     /* Mapping */
-    remap(x,y);
+    remap(x, y, x_max, y_max);
 
     if (!valid) z = 0;
 

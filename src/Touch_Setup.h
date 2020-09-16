@@ -17,14 +17,17 @@
         #define aYP 39  // analog input pin connected to LCD_WR
     #endif
 
-    #define ADC_MAX 4095  // maximum value for ESP32 ADC (default 11db, 12 bits)
+    #define ADC_RESOLUTION 10 // Resolution for ESP32 ADC (default 12 bits)
     #define NOISE_LEVEL 4  // Allow small amount of measurement noise
 
 //#########################
 // Mapping
 //#########################
-    #define MAP_TOUCH // Uncomment to enable mapping between raw analog read and screen coordinates
-    #ifdef MAP_TOUCH
+    #define POLYNOMIAL // Uncomment to enable mapping between raw analog read and screen coordinates
+    #ifdef POLYNOMIAL
+        #define POLY_X 7.393350097e-05F*dx*dx + 3.308962286e-01F*dx + -5.089157104e+01F
+        #define POLY_Y -1.246797328e-04F*dy*dy + -4.144772887e-01F*dy + 5.260565186e+02F
+    #else
         /*
           0,3----1,3----2,3
            |       |      |

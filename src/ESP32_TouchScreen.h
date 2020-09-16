@@ -2,6 +2,7 @@
 #ifndef _ESP32_TOUCHSCREEN_H_
 #define _ESP32_TOUCHSCREEN_H_
 #include <Arduino.h>
+#include <driver/adc.h>
 
 #ifndef ESP32
     #error "Not an ESP32 board. Make sure the correct board is selected."
@@ -23,8 +24,8 @@
 #ifndef NOISE_LEVEL
     #define NOISE_LEVEL 4
 #endif
-#ifndef ADC_MAX
-    #define ADC_MAX 4095
+#ifndef ADC_RESOLUTION
+    #define ADC_RESOLUTION 10
 #endif
 #ifndef GRID_POINTS_X
     #define GRID_POINTS_X 2
@@ -43,6 +44,7 @@
 
 typedef volatile uint32_t RwReg;
 #define USE_FAST_PINIO
+#define ADC_MAX ((1 << ADC_RESOLUTION)-1) // maximum value for ESP32 ADC (default 11db, 12 bits)
 
 class TSPoint {
 public:
@@ -60,8 +62,8 @@ public:
     TouchScreen(uint8_t xp, uint8_t yp, uint8_t xm, uint8_t ym, uint16_t rx);
 
     bool getTouchRaw(uint16_t &x, uint16_t &y, uint16_t &z);
-    void remap(uint16_t &x, uint16_t &y);
-    TSPoint getPoint();
+    void remap(uint16_t &x, uint16_t &y, uint16_t x_max, uint16_t y_max);
+    TSPoint getPoint(uint16_t x_max, uint16_t y_max);
     uint16_t pressure();
     int readTouchY();
     int readTouchX();
@@ -81,8 +83,11 @@ private:
     RwReg oldMode = 0;
     RwReg oldState = 0;
 
+    #ifndef POLYNOMIAL
+    // Each element in the array encodes the ADC value at one of 16 points.
     uint16_t grid_x[GRID_POINTS_X] = GRID_X;
     uint16_t grid_y[GRID_POINTS_Y] = GRID_Y;
+    #endif
 
 #ifdef USE_FAST_PINIO
     RwReg xp_pin, xm_pin, yp_pin, ym_pin;
