@@ -1,6 +1,5 @@
 
-#include <TouchScreen.h>
-#include <TFT_eSPI.h>
+#include "touch_calib.h"
 
 // adjust pressure sensitivity - note works 'backwards'
 #define MINPRESSURE 200
