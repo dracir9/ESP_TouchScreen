@@ -14,8 +14,8 @@
 
 TFT_eSPI tft = TFT_eSPI();
 TouchScreen ts(TOUCH_PIN_XP, TOUCH_PIN_YP, TOUCH_PIN_XM, TOUCH_PIN_YM, 300);
-uint16_t pointsX[16]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-uint16_t pointsY[16]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+uint16_t pointsX[16]={0};
+uint16_t pointsY[16]={0};
 uint8_t divX;
 uint8_t divY;
 
@@ -218,7 +218,7 @@ void printResults()
         Serial.println("\"");
         Serial.print("-D GRID_Y=\"");
     #else
-        Serial.print("\n#define GRID_X ");
+        Serial.print("\n#define GRID_Y ");
     #endif
 
     Serial.print("{");
@@ -255,6 +255,28 @@ void printResults()
 void optimizeSamples()
 {
     // Sample reduction
+    //
+    //     t0        tx              t1
+    //     v         v               v
+    // ----o---------o--------o------o-----------o-----o---------o
+    //
+    // Try to calculate each poin between t0 and t1 using linear interpolation. If the results are within tolerance move t1 to next point.
+    //
+    //     t0        tx                          t1
+    //     v         v                           v
+    // ----o---------o--------o------o-----------o-----o---------o
+    //
+    // Repeat for the new points. If results are not within tolerance keep the last two successful points and remove the intermediate ones.
+    //
+    //     t0                 tx     t1
+    //     v                  v      v
+    // ----o-------------------------o-----------o-----o---------o
+    //
+    // Move t0 and t1 and repeat
+    //                               t0          tx    t1
+    //                               v           v     v
+    // ----o-------------------------o-----------o-----o---------o
+
     uint8_t i = 0;
     uint8_t k = 2;
     while(i+k <= divX)
