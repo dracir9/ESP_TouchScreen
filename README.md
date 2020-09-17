@@ -7,7 +7,7 @@ Added modification to allow the 4-wire resistive touchscreen of LCDs with parall
 
 ## Reason for Modification
 
-ESP32 WiFi disables ADC2 channel so some pins attached to the touchscreen no longer have analog input capability. We alternative pins to perform analog read without problems but requires additional wiring. Any pin from 32 to 39 may be used but pins from 34 to 39 are recomended. Pins 34 to 39 are input only so always present a high impedance to avoid the risk of two outputs shorting.
+ESP32 WiFi disables ADC2 channel so some pins attached to the touchscreen no longer have analog input capability. We use alternative pins to perform analog reads without problems but it requires additional wiring. Any pin from 32 to 39 may be used but pins from 34 to 39 are recomended. Pins 34 to 39 are input only so they always present a high impedance, thus avoiding the risk of two outputs shorting.
 
 ## Prerequisites
 
@@ -33,4 +33,4 @@ No changes are required to existing sketches, just recompilation.
 
 Compatible with both [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) and [MCUFRIEND_kbv](https://github.com/prenticedavid/MCUFRIEND_kbv/) libraries
 
-Touchscreen needs to be calibrated before use! We recomment using included [touch calibration sketch](examples/touch_calib)  
+**Touchscreen needs to be calibrated before use!** We recomment using included [touch calibration sketch](examples/touch_calib)  
