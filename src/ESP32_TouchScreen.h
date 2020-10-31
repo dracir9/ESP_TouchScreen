@@ -2,7 +2,6 @@
 #ifndef _ESP32_TOUCHSCREEN_H_
 #define _ESP32_TOUCHSCREEN_H_
 #include <Arduino.h>
-#include <driver/adc.h>
 
 #ifndef ESP32
     #error "Not an ESP32 board. Make sure the correct board is selected."
@@ -59,11 +58,11 @@ public:
 
 class TouchScreen {
 public:
-    TouchScreen(uint8_t xp, uint8_t yp, uint8_t xm, uint8_t ym, uint16_t rx);
+    TouchScreen(uint8_t xp, uint8_t yp, uint8_t xm, uint8_t ym, uint16_t rx = 0);
 
     bool getTouchRaw(uint16_t &x, uint16_t &y, uint16_t &z);
     void remap(uint16_t &x, uint16_t &y, uint16_t x_max, uint16_t y_max);
-    TSPoint getPoint(uint16_t x_max, uint16_t y_max);
+    TSPoint getPoint(uint16_t x_max = 4095, uint16_t y_max = 4095);
     uint16_t pressure();
     int readTouchY();
     int readTouchX();

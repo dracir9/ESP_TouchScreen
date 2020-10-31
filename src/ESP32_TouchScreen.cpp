@@ -303,7 +303,7 @@ bool TouchScreen::getTouchRaw(uint16_t &x, uint16_t &y, uint16_t &z)
     return valid;
 }
 
-TSPoint TouchScreen::getPoint(uint16_t x_max = 4095, uint16_t y_max = 4095)
+TSPoint TouchScreen::getPoint(uint16_t x_max, uint16_t y_max)
 {
     uint16_t x, y, z;
     bool valid = getTouchRaw(x,y,z);
@@ -315,7 +315,7 @@ TSPoint TouchScreen::getPoint(uint16_t x_max = 4095, uint16_t y_max = 4095)
     return TSPoint(x,y,z);
 }
 
-TouchScreen::TouchScreen(uint8_t xp, uint8_t yp, uint8_t xm, uint8_t ym, uint16_t rxplate=0)
+TouchScreen::TouchScreen(uint8_t xp, uint8_t yp, uint8_t xm, uint8_t ym, uint16_t rxplate)
 {
     _yp = yp;
     _xm = xm;

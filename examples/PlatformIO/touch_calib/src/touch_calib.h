@@ -2,7 +2,7 @@
 #ifndef _TOUCH_CALIB_H_
 #define _TOUCH_CALIB_H_
 
-#include <TouchScreen.h>
+#include <ESP32_TouchScreen.h>
 #include <TFT_eSPI.h>
 
 void drawMark(uint16_t x, uint16_t y);
