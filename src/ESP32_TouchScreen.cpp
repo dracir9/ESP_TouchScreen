@@ -169,12 +169,6 @@ bool TouchScreen::getTouchRaw(uint16_t &x, uint16_t &y, uint16_t &z)
 
     valid = true;
 
-    if (init)
-    {
-        analogReadResolution(ADC_RESOLUTION);
-        init = false;
-    }
-
     // Save state of pins to allow restoring them
     savePinstate();
 
@@ -335,6 +329,7 @@ TouchScreen::TouchScreen(uint8_t xp, uint8_t yp, uint8_t xm, uint8_t ym, uint16_
         xp_pin = yp_pin = xm_pin = ym_pin = 0;
     }
 #endif
+    analogReadResolution(ADC_RESOLUTION);
 }
 
 int TouchScreen::readTouchX(void)

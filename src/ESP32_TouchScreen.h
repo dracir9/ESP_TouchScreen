@@ -76,7 +76,6 @@ private:
     uint8_t _yp, _ym, _xm, _xp;
     uint16_t _rxplate;
 
-    bool init = true;
     bool restore = false;
 
     RwReg oldMode = 0;
