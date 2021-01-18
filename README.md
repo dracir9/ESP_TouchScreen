@@ -1,9 +1,10 @@
 # ESP_TouchScreen
 
-This is a 4-wire resistive touch screen library for ESP32.
+This is a 4-wire resistive touch screen library for ESP32 based on [Adafruit's Arduino](https://github.com/adafruit/Adafruit_TouchScreen) implementation.
 
 Added modification to allow the 4-wire resistive touchscreen of LCDs with parallel data interfaces to be used with ESP32 UNO style boards whilst WiFi is enabled.
 
+As the ADC in the ESP32 has some problems for accuracy the library also includes a function for error correction and mapping. It can be configured to use polinomial aproximation or linear interpolation between known points.
 
 ## Reason for Modification
 
