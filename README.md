@@ -43,12 +43,33 @@ If using Arduino IDE navigate to your library folder, open TouchSetup.h and set 
 If using PlatformIO we recomment using "-build_flags" in your platformio.ini file.
 
 ## Software Setup
-*Arduino Basic setup*
-1. Find the file called TocuhSetup.h in your library folder.
+**Arduino Basic setup**
+1. Find the file called `TouchSetup.h` in your library folder.
 2. Open the file in any text editor and locate the following lines:
+```
 - #define aXM xx
 - #define aYP yy
+```
+5. Change the values "xx" and "yy" to the analog pins connected to XM and YP(must be between 32 and 39).
+
+*Optional*
+5. Select mapping method: Polynomial or Grid. Comment the `#define POLYNOMIAL` line for Grid method.
+6. Run the calibration example to get the calibration values
+7. Paste the output values into `TouchSetup.h`
+
+**Platform IO Basic Setup**
+1. Open platform.ini file
+2. Add the following lines
+```
+-D TOUCH_SETUP_LOADED=1
+-D aYP=xx
+-D aXM=yy
+```
 4. Change the values "xx" and "yy" to the analog pins connected to XM and YP(must be between 32 and 39).
+*Optional*
+5. Select mapping method: Polynomial or Grid. Default mode is Grid. Add `-D POLYNOMIAL=1` to enable polynomial method.
+6. Run the calibration example to get the calibration values
+7. Paste the output values into `TouchSetup.h`
 
 ## Using
 
