@@ -77,4 +77,4 @@ Check the provided examples for information about how to use the library.
 
 Compatible with both [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) and [MCUFRIEND_kbv](https://github.com/prenticedavid/MCUFRIEND_kbv/) libraries
 
-**Touchscreen needs to be calibrated before use!** We recomment using included [touch calibration sketch](examples/touch_calib)  
+**Touchscreen needs to be calibrated before use!** We recomment using included [touch calibration sketch](examples/ArduinoIDE/touch_calib)  
