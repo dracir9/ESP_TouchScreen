@@ -323,7 +323,7 @@ TouchScreen::TouchScreen(uint8_t xp, uint8_t yp, uint8_t xm, uint8_t ym, uint16_
     xm_pin = digitalPinToBitMask(_xm);
     ym_pin = digitalPinToBitMask(_ym);
 
-    if((_xp < 2 || _yp < 2 || _xm < 2 || _ym < 2) && (_xp > 31 || _yp < 31 || _xm < 31 || _ym < 31))
+    if(_xp < 2 || _yp < 2 || _xm < 2 || _ym < 2)
     {
         Serial.println("WARNING: Using unexpected pins for touch screen. Undefined behavior may occur");
         xp_pin = yp_pin = xm_pin = ym_pin = 0;

@@ -13,8 +13,8 @@
     Pins 34 to 39 are input only so always present a high impedance to avoid the risk of two outputs shorting.
     */
     #ifdef ESP32_WIFI_TOUCH
-        #define aXM 35  // analog input pin connected to LCD_RS 
-        #define aYP 39  // analog input pin connected to LCD_WR
+        #define aXM 35  // analog input pin connected to YM pin
+        #define aYP 34  // analog input pin connected to YP pin
     #endif
 
     #define ADC_RESOLUTION 10 // Resolution for ESP32 ADC (default 12 bits)
