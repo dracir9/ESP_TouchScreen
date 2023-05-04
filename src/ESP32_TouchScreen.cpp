@@ -74,11 +74,11 @@ void TouchScreen::clearPin(RwReg mask)
 #include "driver/rtc_io.h"
 void TouchScreen::gpioMode(uint8_t gpio, uint8_t mode)
 {
-    uint32_t rtc_reg = rtc_gpio_desc[gpio].reg;
+    uint32_t rtc_reg = rtc_io_desc[rtc_io_num_map[gpio]].reg;
 
     //RTC pins PULL settings
     if(rtc_reg) {
-        ESP_REG(rtc_reg) = ESP_REG(rtc_reg) & ~(rtc_gpio_desc[gpio].pullup | rtc_gpio_desc[gpio].pulldown);
+        ESP_REG(rtc_reg) = ESP_REG(rtc_reg) & ~(rtc_io_desc[rtc_io_num_map[gpio]].pullup | rtc_io_desc[rtc_io_num_map[gpio]].pulldown);
     }
 
     if(gpio < 32)
@@ -91,12 +91,14 @@ void TouchScreen::gpioMode(uint8_t gpio, uint8_t mode)
         gpio -= 32;
         if(mode == INPUT) GPIO.enable1_w1tc.data = ((uint32_t)1 << gpio);
         else GPIO.enable1_w1ts.data = ((uint32_t)1 << gpio);
+        // Restore original gpio number...
+        gpio += 32;
     }
 
     if(mode == INPUT)
-    ESP_REG(DR_REG_IO_MUX_BASE + esp32_gpioMux[gpio].reg) = ((uint32_t)2 << FUN_DRV_S) | (FUN_IE) | ((uint32_t)2 << MCU_SEL_S);
+    ESP_REG(GPIO_PIN_MUX_REG[gpio]) = ((uint32_t)2 << FUN_DRV_S) | (FUN_IE) | ((uint32_t)2 << MCU_SEL_S);
     else
-    ESP_REG(DR_REG_IO_MUX_BASE + esp32_gpioMux[gpio].reg) = ((uint32_t)2 << FUN_DRV_S) | ((uint32_t)2 << MCU_SEL_S);
+    ESP_REG(GPIO_PIN_MUX_REG[gpio]) = ((uint32_t)2 << FUN_DRV_S) | ((uint32_t)2 << MCU_SEL_S);
     GPIO.pin[gpio].val = 0;
 }
 #endif
